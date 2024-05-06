@@ -191,4 +191,26 @@ $ sudo vim /etc/systemd/system/sonar.service
 
 ## Watch log files and monitor for startup
      $ sudo tail -f /opt/sonarqube/logs/sonar.log
+Now copy public ip of sonarqube ec2 and open it at port 9000
+
+## Integrate Sonarqube with jenkins
+ - In sonarqube dashboard under security , generate new token
+ - go to jenkins add credential , kind secret text
+ - install sonarqube scanner,sonar quality gates,quality gates
+ - manage jenkins > system , under add sonarqube
+ - name - sonarqube server , url = private ip of sonarqube server with 9000 port
+ - manage jenkins > tools > undersonarqube installations , name sonarqube-scanner> install automatically 5.01.3006
+
+### Add one more stage in the jenkinsfile
+```
+stage("SonarQube Analysis"){
+           steps {
+	           script {
+		        withSonarQubeEnv(credentialsId: 'jenkins-sonarqube-token') { 
+                        sh "mvn sonar:sonar"
+		        }
+	           }	
+           }
+       }
+
 
