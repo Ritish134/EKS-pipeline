@@ -62,7 +62,7 @@ sudo apt-get install jenkins
         maven 'Maven3'
     }
     environment {
-	    APP_NAME = "register-app-pipeline"
+	    APP_NAME = "simple-app-pipeline"
             RELEASE = "1.0.0"
             DOCKER_USER = "ritish134"
             DOCKER_PASS = 'dockerhub'
@@ -228,4 +228,76 @@ Then build now in jenkins to check stage is added
 
         }
 ## Build and push docker image using pipeline script
+- Go to manage jenkins > plugins > docker , docker commons,docker pipeline,docker API,docker build step,cloud bees
+- Add credential for docker hub with id dockerhub
+- Add one more stage to jenkins
+  ```
+  	stage("Build & Push Docker Image") {
+            steps {
+                script {
+                    docker.withRegistry('',DOCKER_PASS) {
+                        docker_image = docker.build "${IMAGE_NAME}"
+                    }
+
+                    docker.withRegistry('',DOCKER_PASS) {
+                        docker_image.push("${IMAGE_TAG}")
+                        docker_image.push('latest')
+                    }
+                }
+            }
+
+       }
+  ```
+  To scan the docker image use trivy
+  in jenkins file
+  ```
+   	stage("Trivy Scan") {
+           steps {
+               script {
+	            sh ('docker run -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image ritish134/simple-app-pipeline:latest --no-progress --scanners vuln  --exit-code 0 --severity HIGH,CRITICAL --format table')
+               }
+           }
+       }
+  stage ('Cleanup Artifacts') {
+           steps {
+               script {
+                    sh "docker rmi ${IMAGE_NAME}:${IMAGE_TAG}"
+                    sh "docker rmi ${IMAGE_NAME}:latest"
+               }
+          }
+       }
+  ```
+  ## Setup bootstrap server for eksctl
+  - create new ec2 eks-bootstrap server ubuntu
+  - sudo apt update
+  - sudo apt upgrade
+  - sudo nano /etc/hostname
+  - sudo init 6
+  - install aws cli
+  - 	curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+  - apt install unzip
+  - unzip awscliv2.zip
+  - sudo ./aws/install
+  - Download kubectl
+  - curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.27.1/2023-04-19/bin/linux/amd64/kubectl
+  - chmod +x ./kubectl
+  - mv kubectl /bin
+    ## Installing  eksctl
+	Refer---https://github.com/eksctl-io/eksctl/blob/main/README.md#installation
+	 curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+	 cd /tmp
+	 ll
+	 sudo mv /tmp/eksctl /bin
+	 eksctl version
+    ## Setup Kubernetes using eksctl
+	Refer--https://github.com/aws-samples/eks-workshop/issues/734
+	 eksctl create cluster --name virtualtechbox-cluster \
+	--region ap-south-1 \
+	--node-type t2.small \
+	--nodes 3 \
+	
+	 kubectl get nodes
+
+  
+  
 
