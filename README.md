@@ -212,5 +212,20 @@ stage("SonarQube Analysis"){
 	           }	
            }
        }
+```
+Then build now in jenkins to check stage is added
+- Create webhook in sonarqube gui
+- paste https://<private-ip-of-jenkins-master>/sonarqube-webhook
 
+  Add one more stage in jenkinsfile
+  ```
+    stage("Quality Gate"){
+           steps {
+               script {
+                    waitForQualityGate abortPipeline: false, credentialsId: 'jenkins-sonarqube-token'
+                }	
+            }
+
+        }
+## Build and push docker image using pipeline script
 
