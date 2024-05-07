@@ -297,6 +297,75 @@ Then build now in jenkins to check stage is added
 	--nodes 3 \
 	
 	 kubectl get nodes
+  ## ArgoCD on EKS cluster
+  - kubectl create namespace argocd
+  -  Next, let's apply the yaml configuration files for ArgoCd
+       kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+  -  Now we can view the pods created in the ArgoCD namespace.
+      kubectl get pods -n argocd
+  -  To interact with the API Server we need to deploy the CLI:
+     curl --silent --location -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v2.4.7/argocd-linux-amd64
+     chmod +x /usr/local/bin/argocd
+  - Expose argocd-server
+    $ kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+
+  - Wait about 2 minutes for the LoadBalancer creation
+    $ kubectl get svc -n argocd
+
+  - Get pasword and decode it.
+    $ kubectl get secret argocd-initial-admin-secret -n argocd -o yaml
+    $ echo WXVpLUg2LWxoWjRkSHFmSA== | base64 --decode
+
+  ## Add EKS Cluster to ArgoCD
+- login to ArgoCD from CLI
+    $ argocd login a2255bb2bb33f438d9addf8840d294c5-785887595.ap-south-1.elb.amazonaws.com --username admin
+
+- 
+     $ argocd cluster list
+
+- Below command will show the EKS cluster
+     $ kubectl config get-contexts
+
+- Add above EKS cluster to ArgoCD with below command
+     $ argocd cluster add i-08b9d0ff0409f48e7@virtualtechbox-cluster.ap-south-1.eksctl.io --name virtualtechbox-eks-cluster
+
+- $ kubectl get svc
+- Add github repo using argocd GUI
+
+## Create CD job in jenkins to automate the process
+- use project type pipeline >  check discard old builds , max build=2,this project is parameterized > string parameter , name=IMAGE_TAG, trigger builds remotely = gitops-token,pipeline script from scm and git
+- Add more stage to jenkins file
+  ```
+  	stage("Trigger CD Pipeline") {
+            steps {
+                script {
+                    sh "curl -v -k --user clouduser:${JENKINS_API_TOKEN} -X POST -H 'cache-control: no-cache' -H 'content-type: application/x-www-form-urlencoded' --data 'IMAGE_TAG=${IMAGE_TAG}' 'ec2-13-232-128-192.ap-south-1.compute.amazonaws.com:8080/job/gitops-register-app-cd/buildWithParameters?token=gitops-token'"
+                }
+            }
+       }
+    }
+
+    post {
+       failure {
+             emailext body: '''${SCRIPT, template="groovy-html.template"}''', 
+                      subject: "${env.JOB_NAME} - Build # ${env.BUILD_NUMBER} - Failed", 
+                      mimeType: 'text/html',to: "ashfaque.s510@gmail.com"
+      }
+      success {
+            emailext body: '''${SCRIPT, template="groovy-html.template"}''', 
+                     subject: "${env.JOB_NAME} - Build # ${env.BUILD_NUMBER} - Successful", 
+                     mimeType: 'text/html',to: "ashfaque.s510@gmail.com"
+      }      
+   }
+}
+- generate new api token on jenkins
+- then add credentials in jenkins , kind secret text
+
+============================================================= Cleanup =============================================================
+$ kubectl get all
+$ kubectl delete deployment.apps/virtualtechbox-regapp       //it will delete the deployment
+$ kubectl delete service/virtualtechbox-service              //it will delete the service
+$ eksctl delete cluster virtualtechbox --region ap-south-1     OR    eksctl delete cluster --region=ap-south-1 --name=virtualtechbox-cluster      //it will delete the EKS cluster
 
   
   
